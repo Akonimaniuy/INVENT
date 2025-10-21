@@ -1,0 +1,25 @@
+<?php require_once __DIR__ . '/header.php'; ?>
+
+<h1 class="mt-4">Edit Category</h1>
+
+<?php if (!empty($errors)): ?>
+    <div class="alert alert-danger">
+        <strong>Please correct the following errors:</strong>
+        <ul>
+            <?php foreach ($errors as $error): ?>
+                <li><?php echo htmlspecialchars($error); ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
+
+<form action="index.php?action=edit_category&id=<?php echo htmlspecialchars($this->category->id); ?>" method="POST">
+    <div class="form-group">
+        <label for="name">Category Name</label>
+        <input type="text" name="name" id="name" class="form-control" value="<?php echo htmlspecialchars($_POST['name'] ?? $this->category->name); ?>" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Update Category</button>
+    <a href="index.php?action=categories" class="btn btn-secondary">Cancel</a>
+</form>
+
+<?php require_once __DIR__ . '/footer.php'; ?>

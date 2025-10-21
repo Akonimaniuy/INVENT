@@ -1,0 +1,103 @@
+/* --- Google Font --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* --- Base Styles --- */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f7f6; /* A very light, soft grey */
+    color: #333;
+    padding-top: 70px; /* Space for fixed navbar */
+}
+
+.container, .container-fluid {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+/* --- Navbar --- */
+.navbar.bg-white {
+    box-shadow: 0 2px 4px rgba(0,0,0,.08);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.nav-link {
+    font-weight: 500;
+}
+
+/* --- Cards --- */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,.05);
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0,0,0,.08);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.card-header i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+/* --- Dashboard Stat Cards --- */
+.stat-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card .card-body {
+    position: relative;
+    z-index: 2;
+}
+
+.stat-card .card-icon {
+    font-size: 4.5rem;
+    opacity: 0.15;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover .card-icon {
+    transform: translateY(-50%) scale(1.1);
+    opacity: 0.2;
+}
+
+/* --- Tables --- */
+.table-hover tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.table .thead-light th {
+    background-color: #e9ecef;
+    border-bottom-width: 1px;
+    font-weight: 600;
+}
+
+.table-actions {
+    white-space: nowrap;
+    width: 1%;
+}
+
+/* --- Footer --- */
+.footer {
+    background-color: #fff;
+    border-top: 1px solid #dee2e6;
+    padding: 1.5rem 0;
+}
