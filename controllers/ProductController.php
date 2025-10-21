@@ -23,15 +23,17 @@ class ProductController {
     }
 
     public function dashboard() {
-        $stats = $this->product->getDashboardStats();
-        $low_stock_products = $this->product->getLowStockProducts();
-        $recent_sales = $this->sale->getRecentSales(5);
-        $top_selling_products = $this->sale->getTopSellingProducts(5);
+        $user_id = $_SESSION['user_id'];
+        $stats = $this->product->getDashboardStats($user_id);
+        $low_stock_products = $this->product->getLowStockProducts($user_id);
+        $recent_sales = $this->sale->getRecentSales($user_id, 5);
+        $top_selling_products = $this->sale->getTopSellingProducts($user_id, 5);
         // These variables will be available in the dashboard view
         require_once 'views/dashboard.php';
     }
 
     public function index() {
+        $user_id = $_SESSION['user_id'];
         $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
         $view_mode = isset($_GET['view']) && $_GET['view'] === 'categorized' ? 'categorized' : 'list';
 
@@ -51,14 +53,14 @@ class ProductController {
             if ($current_page < 1) {
                 $current_page = 1;
             }
-            $total_products = $this->product->countProducts($search_term);
+            $total_products = $this->product->countProducts($user_id, $search_term);
             $total_pages = ceil($total_products / $products_per_page);
             $offset = ($current_page - 1) * $products_per_page;
 
-            $stmt = $this->product->getProducts($search_term, $sort_column, $sort_order, $products_per_page, $offset);
+            $stmt = $this->product->getProducts($user_id, $search_term, $sort_column, $sort_order, $products_per_page, $offset);
         } else {
             // For categorized view, fetch all products, no pagination
-            $stmt = $this->product->getProducts($search_term, $sort_column, $sort_order, 1000, 0);
+            $stmt = $this->product->getProducts($user_id, $search_term, $sort_column, $sort_order, 1000, 0);
         }
 
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -68,7 +70,8 @@ class ProductController {
     }
 
     public function add() {
-        $category_stmt = $this->category->read();
+        $user_id = $_SESSION['user_id'];
+        $category_stmt = $this->category->read($user_id);
         $categories = $category_stmt->fetchAll(PDO::FETCH_ASSOC);
         $errors = [];
 
@@ -90,7 +93,7 @@ class ProductController {
             }
 
             if (empty($errors)) {
-                $this->product->addProduct($name, $_POST['description'], $price, $quantity, $_POST['category_id'], $image_name);
+                $this->product->addProduct($user_id, $name, $_POST['description'], $price, $quantity, $_POST['category_id'], $image_name);
                 $_SESSION['message'] = 'Product added successfully!';
                 header('Location: index.php');
                 exit;
@@ -100,9 +103,16 @@ class ProductController {
     }
 
     public function edit($id) {
-        $category_stmt = $this->category->read();
+        $user_id = $_SESSION['user_id'];
+        $category_stmt = $this->category->read($user_id);
         $categories = $category_stmt->fetchAll(PDO::FETCH_ASSOC);
-        $product = $this->product->getProductById($id);
+        $product = $this->product->getProductById($id, $user_id);
+
+        if (!$product) {
+            $_SESSION['error'] = 'Product not found.';
+            header('Location: index.php');
+            exit;
+        }
         $errors = [];
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -131,7 +141,7 @@ class ProductController {
             }
 
             if (empty($errors)) {
-                $this->product->updateProduct($id, $name, $_POST['description'], $price, $quantity, $_POST['category_id'], $image_name);
+                $this->product->updateProduct($id, $user_id, $name, $_POST['description'], $price, $quantity, $_POST['category_id'], $image_name);
                 $_SESSION['message'] = 'Product updated successfully!';
                 header('Location: index.php');
                 exit;
@@ -141,14 +151,21 @@ class ProductController {
     }
 
     public function delete($id) {
-        $product = $this->product->getProductById($id);
+        $user_id = $_SESSION['user_id'];
+        $product = $this->product->getProductById($id, $user_id);
         $this->imageUploader->delete($product['image'] ?? null);
-        $this->product->deleteProduct($id);
+        $this->product->deleteProduct($id, $user_id);
         header('Location: index.php');
     }
 
     public function history($id) {
-        $product = $this->product->getProductById($id);
+        $user_id = $_SESSION['user_id'];
+        $product = $this->product->getProductById($id, $user_id);
+        if (!$product) {
+            $_SESSION['error'] = 'Product not found.';
+            header('Location: index.php');
+            exit;
+        }
         $history = $this->product->getMovementHistory($id);
 
         // Pass data to the view
@@ -156,18 +173,20 @@ class ProductController {
     }
 
     public function searchProducts() {
+        $user_id = $_SESSION['user_id'];
         header('Content-Type: application/json');
         $searchTerm = isset($_GET['term']) ? trim($_GET['term']) : '';
         if (empty($searchTerm)) {
             echo json_encode([]);
             exit;
         }
-        $products = $this->product->getProducts($searchTerm, 'name', 'ASC', 10, 0)->fetchAll(PDO::FETCH_ASSOC);
+        $products = $this->product->getProducts($user_id, $searchTerm, 'name', 'ASC', 10, 0)->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode($products);
         exit;
     }
 
     public function exportToCsv() {
+        $user_id = $_SESSION['user_id'];
         $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 
         // Whitelist allowed sort columns
@@ -178,7 +197,7 @@ class ProductController {
         $sort_order = isset($_GET['order']) && in_array(strtoupper($_GET['order']), ['ASC', 'DESC']) ? strtoupper($_GET['order']) : 'DESC';
 
         // Fetch all matching records (no pagination)
-        $stmt = $this->product->getProducts($search_term, $sort_column, $sort_order, 1000000, 0);
+        $stmt = $this->product->getProducts($user_id, $search_term, $sort_column, $sort_order, 1000000, 0);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $filename = "product_list_" . date('Y-m-d') . ".csv";

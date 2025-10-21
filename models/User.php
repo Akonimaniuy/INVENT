@@ -31,5 +31,14 @@ class User {
         }
         return false;
     }
+
+    public function findByEmail($email) {
+        $query = 'SELECT id FROM ' . $this->table . ' WHERE email = ?';
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $email);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 }
 ?>

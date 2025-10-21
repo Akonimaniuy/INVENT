@@ -7,7 +7,7 @@ class Product {
         $this->conn = $db;
     }
 
-    public function getProducts($search_term = '', $sort_column = 'date_added', $sort_order = 'DESC', $limit = 10, $offset = 0) {
+    public function getProducts($user_id, $search_term = '', $sort_column = 'date_added', $sort_order = 'DESC', $limit = 10, $offset = 0) {
         $query = 'SELECT
                     p.id, p.name, p.description, p.price, p.quantity, p.image, p.date_added, p.date_updated,
                     c.name as category_name
@@ -16,7 +16,7 @@ class Product {
                   ';
 
         $where_clauses = [];
-        $params = ['limit' => $limit, 'offset' => $offset];
+        $params = ['user_id' => $user_id, 'limit' => $limit, 'offset' => $offset];
 
         if (!empty($search_term)) {
             $where_clauses[] = '(p.name LIKE :search_term OR p.description LIKE :search_term)';
@@ -24,7 +24,9 @@ class Product {
         }
 
         if (!empty($where_clauses)) {
-            $query .= ' WHERE ' . implode(' AND ', $where_clauses);
+            $query .= ' WHERE p.user_id = :user_id AND (' . implode(' AND ', $where_clauses) . ') ';
+        } else {
+            $query .= ' WHERE p.user_id = :user_id ';
         }
 
         // Note: Column names for ORDER BY cannot be bound as parameters. They are validated in the controller.
@@ -33,6 +35,7 @@ class Product {
         $stmt = $this->conn->prepare($query);
 
         // Bind all parameters
+        $stmt->bindValue(':user_id', $params['user_id'], PDO::PARAM_INT);
         $stmt->bindValue(':limit', $params['limit'], PDO::PARAM_INT);
         $stmt->bindValue(':offset', $params['offset'], PDO::PARAM_INT);
         if (isset($params['search_term'])) {
@@ -43,11 +46,11 @@ class Product {
         return $stmt;
     }
 
-    public function countProducts($search_term = '') {
-        $query = 'SELECT COUNT(id) as total FROM ' . $this->table;
-        $params = [];
+    public function countProducts($user_id, $search_term = '') {
+        $query = 'SELECT COUNT(id) as total FROM ' . $this->table . ' WHERE user_id = ?';
+        $params = [$user_id];
         if (!empty($search_term)) {
-            $query .= ' WHERE name LIKE ? OR description LIKE ?';
+            $query .= ' AND (name LIKE ? OR description LIKE ?)';
             $params[] = "%{$search_term}%";
             $params[] = "%{$search_term}%";
         }
@@ -56,20 +59,19 @@ class Product {
         return $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     }
 
-    public function getProductById($id) {
-        $query = 'SELECT * FROM ' . $this->table . ' WHERE id = ?';
+    public function getProductById($id, $user_id) {
+        $query = 'SELECT * FROM ' . $this->table . ' WHERE id = ? AND user_id = ?';
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $id);
-        $stmt->execute();
+        $stmt->execute([$id, $user_id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function addProduct($name, $description, $price, $quantity, $category_id, $image) {
+    public function addProduct($user_id, $name, $description, $price, $quantity, $category_id, $image) {
         $this->conn->beginTransaction();
         try {
-            $query = 'INSERT INTO ' . $this->table . ' (name, description, price, quantity, category_id, image) VALUES (?, ?, ?, ?, ?, ?)';
+            $query = 'INSERT INTO ' . $this->table . ' (user_id, name, description, price, quantity, category_id, image) VALUES (?, ?, ?, ?, ?, ?, ?)';
             $stmt = $this->conn->prepare($query);
-            $stmt->execute([$name, $description, $price, $quantity, $category_id, $image]);
+            $stmt->execute([$user_id, $name, $description, $price, $quantity, $category_id, $image]);
             $product_id = $this->conn->lastInsertId();
 
             $this->logMovement($product_id, 'initial_stock', $quantity, $quantity);
@@ -81,19 +83,18 @@ class Product {
             return false;
         }
     }
-
-    public function updateProduct($id, $name, $description, $price, $quantity, $category_id, $image) {
+    public function updateProduct($id, $user_id, $name, $description, $price, $quantity, $category_id, $image) {
         $this->conn->beginTransaction();
         try {
             // Get current quantity before update
-            $stmt_get = $this->conn->prepare('SELECT quantity FROM ' . $this->table . ' WHERE id = ?');
-            $stmt_get->execute([$id]);
+            $stmt_get = $this->conn->prepare('SELECT quantity FROM ' . $this->table . ' WHERE id = ? AND user_id = ?');
+            $stmt_get->execute([$id, $user_id]);
             $old_quantity = $stmt_get->fetchColumn();
 
             // Update the product
-            $query = 'UPDATE ' . $this->table . ' SET name = ?, description = ?, price = ?, quantity = ?, category_id = ?, image = ? WHERE id = ?';
+            $query = 'UPDATE ' . $this->table . ' SET name = ?, description = ?, price = ?, quantity = ?, category_id = ?, image = ? WHERE id = ? AND user_id = ?';
             $stmt = $this->conn->prepare($query);
-            $stmt->execute([$name, $description, $price, $quantity, $category_id, $image, $id]);
+            $stmt->execute([$name, $description, $price, $quantity, $category_id, $image, $id, $user_id]);
 
             // Log movement if quantity changed
             $quantity_change = $quantity - $old_quantity;
@@ -110,10 +111,10 @@ class Product {
         }
     }
 
-    public function deleteProduct($id) {
-        $query = 'DELETE FROM ' . $this->table . ' WHERE id = ?';
+    public function deleteProduct($id, $user_id) {
+        $query = 'DELETE FROM ' . $this->table . ' WHERE id = ? AND user_id = ?';
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $id);
+        $stmt->execute([$id, $user_id]);
         return $stmt->execute();
     }
 
@@ -158,54 +159,57 @@ class Product {
     }
 
     // Get inventory statistics for the dashboard
-    public function getDashboardStats() {
+    public function getDashboardStats($user_id) {
         $stats = [];
 
         // 1. Total number of products (unique items)
-        $query1 = 'SELECT COUNT(id) as total_products FROM ' . $this->table;
+        $query1 = 'SELECT COUNT(id) as total_products FROM ' . $this->table . ' WHERE user_id = ?';
         $stmt1 = $this->conn->prepare($query1);
-        $stmt1->execute();
+        $stmt1->execute([$user_id]);
         $stats['total_products'] = $stmt1->fetch(PDO::FETCH_ASSOC)['total_products'];
 
         // 2. Total stock value
-        $query2 = 'SELECT SUM(price * quantity) as total_value FROM ' . $this->table;
+        $query2 = 'SELECT SUM(price * quantity) as total_value FROM ' . $this->table . ' WHERE user_id = ?';
         $stmt2 = $this->conn->prepare($query2);
-        $stmt2->execute();
+        $stmt2->execute([$user_id]);
         $stats['total_value'] = $stmt2->fetch(PDO::FETCH_ASSOC)['total_value'] ?? 0;
 
         return $stats;
     }
 
     // Get products with low stock
-    public function getLowStockProducts($threshold = 10) {
-        $query = 'SELECT id, name, quantity, image FROM ' . $this->table . ' WHERE quantity < ? AND quantity > 0 ORDER BY quantity ASC';
+    public function getLowStockProducts($user_id, $threshold = 10) {
+        $query = 'SELECT id, name, quantity, image FROM ' . $this->table . ' WHERE user_id = ? AND quantity < ? AND quantity > 0 ORDER BY quantity ASC';
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $threshold, PDO::PARAM_INT);
+        $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
+        $stmt->bindParam(2, $threshold, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // Get product count per category for reports
-    public function getProductsCountByCategory() {
+    public function getProductsCountByCategory($user_id) {
         $query = 'SELECT c.name, COUNT(p.id) as product_count 
                   FROM categories c 
                   LEFT JOIN products p ON c.id = p.category_id 
+                  WHERE p.user_id = ? OR p.user_id IS NULL
                   GROUP BY c.id, c.name 
                   ORDER BY product_count DESC';
         $stmt = $this->conn->prepare($query);
-        $stmt->execute();
+        $stmt->execute([$user_id]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // Get total stock value per category for reports
-    public function getStockValueByCategory() {
+    public function getStockValueByCategory($user_id) {
         $query = 'SELECT c.name, SUM(p.price * p.quantity) as total_value 
                   FROM categories c 
                   LEFT JOIN products p ON c.id = p.category_id 
+                  WHERE p.user_id = ?
                   GROUP BY c.id, c.name 
                   ORDER BY total_value DESC';
         $stmt = $this->conn->prepare($query);
-        $stmt->execute();
+        $stmt->execute([$user_id]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

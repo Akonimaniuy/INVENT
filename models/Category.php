@@ -3,41 +3,33 @@ class Category {
     private $conn;
     private $table = 'categories';
 
-    public $id;
-    public $name;
-
     public function __construct($db) {
         $this->conn = $db;
     }
 
-    // Read all categories
-    public function read() {
-        $query = 'SELECT id, name FROM ' . $this->table . ' ORDER BY name';
+    // Read all categories for a specific user
+    public function read($user_id) {
+        $query = 'SELECT id, name FROM ' . $this->table . ' WHERE user_id = ? ORDER BY name';
         $stmt = $this->conn->prepare($query);
-        $stmt->execute();
+        $stmt->execute([$user_id]);
         return $stmt;
     }
 
-    // Read single category
-    public function readOne() {
-        $query = 'SELECT name FROM ' . $this->table . ' WHERE id = ? LIMIT 0,1';
+    // Read single category for a specific user
+    public function readOne($id, $user_id) {
+        $query = 'SELECT id, name FROM ' . $this->table . ' WHERE id = ? AND user_id = ? LIMIT 0,1';
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $this->id);
-        $stmt->execute();
+        $stmt->execute([$id, $user_id]);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if($row) {
-            $this->name = $row['name'];
-            return true;
-        }
-        return false;
+        return $row ?: null;
     }
 
-    // Check if a category name exists (and optionally ignore a specific ID)
-    public function nameExists($name, $ignore_id = null) {
-        $query = 'SELECT id FROM ' . $this->table . ' WHERE name = ?';
-        $params = [$name];
+    // Check if a category name exists for a specific user (and optionally ignore a specific ID)
+    public function nameExists($name, $user_id, $ignore_id = null) {
+        $query = 'SELECT id FROM ' . $this->table . ' WHERE name = ? AND user_id = ?';
+        $params = [$name, $user_id];
         if ($ignore_id !== null) {
             $query .= ' AND id != ?';
             $params[] = $ignore_id;
@@ -47,51 +39,40 @@ class Category {
         return $stmt->rowCount() > 0;
     }
 
-    // Create category
-    public function create() {
-        $query = 'INSERT INTO ' . $this->table . ' (name) VALUES (:name)';
+    // Create category for a specific user
+    public function create($name, $user_id) {
+        $query = 'INSERT INTO ' . $this->table . ' (name, user_id) VALUES (?, ?)';
         $stmt = $this->conn->prepare($query);
 
         // Sanitize
-        $this->name = htmlspecialchars(strip_tags($this->name));
+        $name = htmlspecialchars(strip_tags($name));
 
-        // Bind data
-        $stmt->bindParam(':name', $this->name);
-
-        if ($stmt->execute()) {
+        if ($stmt->execute([$name, $user_id])) {
             return true;
         }
-        printf("Error: %s.\n", $stmt->error);
         return false;
     }
 
-    // Update category
-    public function update() {
-        $query = 'UPDATE ' . $this->table . ' SET name = :name WHERE id = :id';
+    // Update category for a specific user
+    public function update($id, $name, $user_id) {
+        $query = 'UPDATE ' . $this->table . ' SET name = ? WHERE id = ? AND user_id = ?';
         $stmt = $this->conn->prepare($query);
 
         // Sanitize
-        $this->name = htmlspecialchars(strip_tags($this->name));
-        $this->id = htmlspecialchars(strip_tags($this->id));
+        $name = htmlspecialchars(strip_tags($name));
 
-        // Bind data
-        $stmt->bindParam(':name', $this->name);
-        $stmt->bindParam(':id', $this->id);
-
-        if ($stmt->execute()) {
+        if ($stmt->execute([$name, $id, $user_id])) {
             return true;
         }
-        printf("Error: %s.\n", $stmt->error);
         return false;
     }
 
-    // Delete category
-    public function delete() {
-        $query = 'DELETE FROM ' . $this->table . ' WHERE id = :id';
+    // Delete category for a specific user
+    public function delete($id, $user_id) {
+        $query = 'DELETE FROM ' . $this->table . ' WHERE id = ? AND user_id = ?';
         $stmt = $this->conn->prepare($query);
-        $this->id = htmlspecialchars(strip_tags($this->id));
-        $stmt->bindParam(':id', $this->id);
-        return $stmt->execute();
+        $stmt->execute([$id, $user_id]);
+        return $stmt->rowCount() > 0;
     }
 }
 ?>

@@ -38,14 +38,18 @@ class UserController {
                 $errors[] = 'Passwords do not match.';
             }
 
+            // Server-side check for email existence
+            if ($this->user->findByEmail($email)) {
+                $errors[] = 'Unable to complete registration with the provided details.';
+            }
+
             if (empty($errors)) {
-                // You might want to add a check here if the email already exists before attempting to register
                 if ($this->user->register($full_name, $email, $password)) {
                     $_SESSION['message'] = 'Registration successful! Please log in.';
-                    header('Location: index.php?action=login');
+                    header('Location: index.php?action=landing');
                     exit;
                 } else {
-                    $errors[] = 'Registration failed. The email might already be in use.';
+                    $errors[] = 'An unexpected error occurred during registration.';
                 }
             }
             // If there are errors, store them in session and redirect back to landing
@@ -75,7 +79,7 @@ class UserController {
 
     public function logout() {
         session_destroy();
-        header('Location: index.php?action=login');
+        header('Location: index.php?action=landing');
         exit;
     }
 
@@ -87,6 +91,20 @@ class UserController {
         }
         // This will make $form_errors available in the landing.php view
         require_once 'views/landing.php';
+    }
+
+    public function checkEmail() {
+        header('Content-Type: application/json');
+        $email = trim($_POST['email'] ?? '');
+
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['available' => false, 'message' => 'Invalid email format.']);
+            exit;
+        }
+
+        $isAvailable = !$this->user->findByEmail($email);
+        echo json_encode(['available' => $isAvailable]);
+        exit;
     }
 }
 ?>

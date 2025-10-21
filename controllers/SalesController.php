@@ -17,7 +17,8 @@ class SalesController {
     }
 
     public function generateInvoice($sale_id) {
-        $saleDetails = $this->sale->getSaleById($sale_id);
+        $user_id = $_SESSION['user_id'];
+        $saleDetails = $this->sale->getSaleById($sale_id, $user_id);
 
         if (!$saleDetails) {
             $_SESSION['error'] = 'Invoice not found.';
@@ -30,12 +31,13 @@ class SalesController {
     }
 
     public function exportToCsv() {
+        $user_id = $_SESSION['user_id'];
         $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
         $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
         $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
         // Fetch all matching records (no pagination)
-        $stmt = $this->sale->getSales($search_term, 'sale_date', 'DESC', 1000000, 0, $start_date, $end_date);
+        $stmt = $this->sale->getSales($user_id, $search_term, 'sale_date', 'DESC', 1000000, 0, $start_date, $end_date);
         $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $filename = "sales_history_" . date('Y-m-d') . ".csv";
@@ -58,6 +60,7 @@ class SalesController {
     }
 
     public function list() {
+        $user_id = $_SESSION['user_id'];
         $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
         // Get date range, default to empty strings
         $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
@@ -76,11 +79,11 @@ class SalesController {
         if ($current_page < 1) {
             $current_page = 1;
         }
-        $total_sales = $this->sale->countSales($search_term, $start_date, $end_date);
+        $total_sales = $this->sale->countSales($user_id, $search_term, $start_date, $end_date);
         $total_pages = ceil($total_sales / $sales_per_page);
         $offset = ($current_page - 1) * $sales_per_page;
 
-        $stmt = $this->sale->getSales($search_term, $sort_column, $sort_order, $sales_per_page, $offset, $start_date, $end_date);
+        $stmt = $this->sale->getSales($user_id, $search_term, $sort_column, $sort_order, $sales_per_page, $offset, $start_date, $end_date);
         $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // The variables will be available in the view
@@ -111,7 +114,8 @@ class SalesController {
             }
         }
 
-        $products = $this->product->getProducts('', 'name', 'ASC', 1000, 0)->fetchAll(PDO::FETCH_ASSOC);
+        $user_id = $_SESSION['user_id']; // Get the user ID from the session
+        $products = $this->product->getProducts($user_id, '', 'name', 'ASC', 1000, 0)->fetchAll(PDO::FETCH_ASSOC);
         require_once 'views/record_sale.php';
     }
 }

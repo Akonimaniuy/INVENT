@@ -12,26 +12,31 @@
     <div class="alert alert-danger"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
 <?php endif; ?>
 
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($categories as $category): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($category['id']); ?></td>
-                <td><?php echo htmlspecialchars($category['name']); ?></td>
-                <td>
-                    <a href="index.php?action=edit_category&id=<?php echo $category['id']; ?>" class="btn btn-sm btn-warning">Edit</a>
-                    <a href="index.php?action=delete_category&id=<?php echo $category['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th>Name</th>
+                    <th style="width: 15%;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $row_number = 0; ?>
+                <?php foreach ($categories as $category): $row_number++; ?>
+                    <tr>
+                        <td><?php echo $row_number; ?></td>
+                        <td><?php echo htmlspecialchars($category['name']); ?></td>
+                        <td>
+                            <a href="index.php?action=edit_category&id=<?php echo $category['id']; ?>" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>
+                            <a href="index.php?action=delete_category&id=<?php echo $category['id']; ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure?');"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

@@ -12,23 +12,25 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
 
 <h1 class="mt-4">Products</h1>
 
-<div class="row mb-3">
-    <div class="col-md-6">
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div class="mb-2 mb-md-0">
         <a href="index.php?action=add" class="btn btn-primary mb-2">Add New Product</a>
         <div class="btn-group mb-2" role="group" aria-label="View mode">
             <a href="?action=products&view=list" class="btn btn-secondary <?php echo ($view_mode === 'list') ? 'active' : ''; ?>">List View</a>
             <a href="?action=products&view=categorized" class="btn btn-secondary <?php echo ($view_mode === 'categorized') ? 'active' : ''; ?>">Categorized View</a>
-            <a href="?action=export_products_csv&<?php echo http_build_query(array_intersect_key($_GET, array_flip(['search', 'sort', 'order']))); ?>" class="btn btn-info">Export to CSV</a>
         </div>
+        <a href="?action=export_products_csv&<?php echo http_build_query(array_intersect_key($_GET, array_flip(['search', 'sort', 'order']))); ?>" class="btn btn-info mb-2">Export to CSV</a>
     </div>
-    <div class="col-md-6">
-        <form action="index.php" method="get" class="form-inline float-md-right">
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <form action="index.php" method="get" class="form-inline">
             <input type="hidden" name="action" value="products">
             <?php if (isset($_GET['view'])): ?>
             <input type="hidden" name="view" value="<?php echo htmlspecialchars($_GET['view']); ?>">
             <?php endif; ?>
-            <input type="text" name="search" class="form-control mr-sm-2" placeholder="Search products..." value="<?php echo htmlspecialchars($search_term ?? ''); ?>" aria-label="Search">
-            <button type="submit" class="btn btn-outline-success">Search</button>
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Search products..." value="<?php echo htmlspecialchars($search_term ?? ''); ?>" aria-label="Search">
+                <button type="submit" class="btn btn-outline-success"><i class="fas fa-search"></i></button>
+            </div>
         </form>
     </div>
 </div>
@@ -43,6 +45,7 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
 <?php if ($view_mode === 'categorized'): ?>
     <?php
     $current_category = null;
+    $row_number = 0;
     if (!empty($products)):
         foreach ($products as $product):
             $category_name = $product['category_name'] ?? 'Uncategorized';
@@ -51,6 +54,7 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
                     echo '</tbody></table></div>'; // Close previous table and card
                 endif;
                 $current_category = $category_name;
+                $row_number = 0; // Reset counter for new category
     ?>
                 <div class="card mb-4">
                     <div class="card-header">
@@ -59,7 +63,7 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th style="width: 5%;">ID</th>
+                                <th style="width: 5%;">#</th>
                                 <th>Image</th>
                                 <th>Name</th>
                                 <th>Description</th>
@@ -70,8 +74,9 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
                         </thead>
                         <tbody>
             <?php endif; ?>
+                        <?php $row_number++; ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($product['id']); ?></td>
+                            <td><?php echo $row_number; ?></td>
                             <td>
                                 <?php if (!empty($product['image'])): ?>
                                     <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" style="width: 50px; height: 50px; object-fit: cover;">
@@ -83,8 +88,8 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
                             <td><?php echo htmlspecialchars($product['quantity']); ?></td>
                             <td>
                                 <a href="index.php?action=edit&id=<?php echo $product['id']; ?>" class="btn btn-sm btn-warning" title="Edit"><i class="fas fa-edit"></i></a>
-                                <a href="index.php?action=history&id=<?php echo $product['id']; ?>" class="btn btn-sm btn-info">History</a>
-                                <a href="index.php?action=delete&id=<?php echo $product['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
+                                <a href="index.php?action=history&id=<?php echo $product['id']; ?>" class="btn btn-sm btn-info" title="History"><i class="fas fa-history"></i></a>
+                                <a href="index.php?action=delete&id=<?php echo $product['id']; ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure?');"><i class="fas fa-trash"></i></a>
                             </td>
                         </tr>
         <?php endforeach; ?>
@@ -100,7 +105,7 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
     <table class="table table-bordered table-hover">
         <thead class="thead-light">
             <tr>
-                <th>ID</th>
+                <th>#</th>
                 <th>Image</th>
                 <th><?php echo sort_link('name', 'Name', $sort_column, $sort_order, $search_term); ?></th>
                 <th>Description</th>
@@ -113,9 +118,10 @@ function sort_link($column, $text, $current_column, $current_order, $search_term
         </thead>
         <tbody>
             <?php if (!empty($products)): ?>
-                <?php foreach ($products as $product): ?>
+                <?php $row_number = $offset ?? 0; ?>
+                <?php foreach ($products as $product): $row_number++; ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($product['id']); ?></td>
+                    <td><?php echo $row_number; ?></td>
                     <td>
                         <?php if (!empty($product['image'])): ?>
                             <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" style="width: 50px; height: 50px; object-fit: cover;">

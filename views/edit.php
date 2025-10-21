@@ -13,13 +13,17 @@
     </div>
 <?php endif; ?>
 
-<form action="index.php?action=edit_category&id=<?php echo htmlspecialchars($this->category->id); ?>" method="POST">
-    <div class="form-group">
-        <label for="name">Category Name</label>
-        <input type="text" name="name" id="name" class="form-control" value="<?php echo htmlspecialchars($_POST['name'] ?? $this->category->name); ?>" required>
+<div class="card">
+    <div class="card-body">
+        <form action="index.php?action=edit_category&id=<?php echo htmlspecialchars($category['id']); ?>" method="POST">
+            <div class="form-group">
+                <label for="name">Category Name</label>
+                <input type="text" name="name" id="name" class="form-control" value="<?php echo htmlspecialchars($_POST['name'] ?? $category['name']); ?>" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Category</button>
+            <a href="index.php?action=categories" class="btn btn-secondary">Cancel</a>
+        </form>
     </div>
-    <button type="submit" class="btn btn-primary">Update Category</button>
-    <a href="index.php?action=categories" class="btn btn-secondary">Cancel</a>
-</form>
+</div>
 
 <?php require_once __DIR__ . '/footer.php'; ?>
